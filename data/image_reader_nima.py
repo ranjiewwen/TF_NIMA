@@ -193,7 +193,7 @@ if __name__=="__main__":
         image_batch_, label_batch_, mean_std_batch_ = sess.run([image_batch, label_batch, mean_std_batch])
 
 
-        for i in range(len(test_reader.data_list)):
+        for i in range(len(test_reader.image_list)):
             image_, score_, mean_std_ = sess.run([test_image, test_score, test_mean_std])
             print(image_.shape,score_.shape,mean_std_.shape)
 
