@@ -1,6 +1,8 @@
 
 # NIMA: Neural Image Assessment base on tensorflow
 
+- In this project , I use the vgg mdoel to complete nima on tid2013 datasets through native tensorflow api tools.
+
 ## Get started
 
 - first you need download the vgg pre-train model weight from :[vgg16_weights.npz](http://www.cs.toronto.edu/~frossard/post/vgg16/)
@@ -69,5 +71,6 @@ distorted_images/i16_23_5.bmp 1.526320 0.081000
 ## Coming soon optimization
 
 - from tensorboard curve it maybe overfit ,but predict scores it looks normal, i am confused.
-- i will contimue optimazation this project , maybe you can also give me some adivese! thanks!
+- maybe there has some bug in the code ,but i will contimue optimazation this project.
+- if you have any questions or some adivise!  please make issue on this project. thanks!
 
