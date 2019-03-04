@@ -52,11 +52,22 @@ distorted_images/i16_03_3.bmp 3.692310 0.089950
 distorted_images/i16_23_5.bmp 1.526320 0.081000
 
 ```
+![I16_01_1](https://github.com/ranjiewwen/TF_NIMA/blob/master/demo/img/I16_01_1.bmp.png)
+![i16_03_3](https://github.com/ranjiewwen/TF_NIMA/blob/master/demo/img/i16_03_3.bmp.png)
+![i16_23_5](https://github.com/ranjiewwen/TF_NIMA/blob/master/demo/img/i16_23_5.bmp.png)
 
 
 ## Experiments result
 
 - you can see train/test log from directory `experiments/datasets/`
 - tensorboard logs in `experiments/datasets/logs`
+
+![nima_tensorboard](https://github.com/ranjiewwen/TF_NIMA/blob/master/demo/img/nima_tensorboard.png)
+
 - save train modes in `experiments/datasets/experiment_name`
+
+## Coming soon optimization
+
+- from tensorboard curve it maybe overfit ,but predict scores it looks normal, i am confused.
+- i will contimue optimazation this project , maybe you can also give me some adivese! thanks!
 
