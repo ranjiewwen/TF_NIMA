@@ -3,6 +3,7 @@
 
 import tensorflow as tf
 
+
 # code from: https://github.com/master/nima/blob/master/nima.py
 def tril_indices(n, k=0):
     """Return the indices for the lower-triangle of an (n, m) array.
@@ -132,26 +133,26 @@ def batch_emd_loss(p, q, r=2):
         loss_vector.append(single_emd_loss(p[i], q[i], r=r))
     return sum(loss_vector) / mini_batch_size
 
-if __name__=="__main__":
-    p1 = tf.constant([[0.,     0.   ,  0.  ,   0.   ,  0.9954, 0.0046 ,0.  ,   0. ,    0.  ,   0.       ]])
-    p2 = tf.constant([[3.2556340e-01 ,3.8285947e-01 ,2.7832073e-01, 1.2781543e-02, 4.6890511e-04,
-  1.5744383e-06, 7.8665829e-07 ,1.0182920e-06, 1.1292350e-06, 1.4213521e-06]])
+
+if __name__ == "__main__":
+    p1 = tf.constant([[0., 0., 0., 0., 0.9954, 0.0046, 0., 0., 0., 0.]])
+    p2 = tf.constant([[3.2556340e-01, 3.8285947e-01, 2.7832073e-01, 1.2781543e-02, 4.6890511e-04,
+                       1.5744383e-06, 7.8665829e-07, 1.0182920e-06, 1.1292350e-06, 1.4213521e-06]])
     p3 = tf.constant([[0.1, 0.2, 0.3, 0.5], [0.3, 0.3, 0.3, 0.1]])
 
     p4 = []
-    f1 = emd_loss(p1,p2)
-    f2 = _emd(p1,p2)
+    f1 = emd_loss(p1, p2)
+    f2 = _emd(p1, p2)
 
     f3 = ecdf(p1)
     f4 = _cum_CDF(p1)
     with tf.Session() as sess:
-        out1=sess.run(f1)
+        out1 = sess.run(f1)
         print(out1)
-        out2=sess.run(f2)
+        out2 = sess.run(f2)
         print(out2)
 
-        out3=sess.run(f3)
+        out3 = sess.run(f3)
         print(out3)
-        out4=sess.run(f4)
+        out4 = sess.run(f4)
         print(out4)
-

@@ -1,28 +1,53 @@
 #!/usr/bin/env python
 # -*- coding:utf-8 -*-
 
-import tensorflow as tf
 import os
-
 from math import pi, exp, sqrt
+
+import tensorflow as tf
+from maxentropy.skmaxent import MinDivergenceModel
+
+
 # for tid2013 mos-[0-9]
 def f(x, mean, var):
-    var=var*var
-    sigma=1e-9
-    return exp(-(x-mean)**2/(2*var+sigma))/sqrt(2*pi*var+sigma)
+    var = var * var
+    sigma = 1e-9
+    return exp(-(x - mean) ** 2 / (2 * var + sigma)) / sqrt(2 * pi * var + sigma)
 
-def get_score_distribution(mean,var):
-    scores_list=[]
+
+def get_score_distribution(mean, var):
+    scores_list = []
     for i in range(10):
-        scores_list.append(f(i,mean,var))
+        scores_list.append(f(i, mean, var))
     return scores_list
 
+
 def get_distribution(mean, var):
-    s = np.random.normal(mean,var,10000)
+    s = np.random.normal(mean, var, 10000)
     s = np.rint(s)
-    a=np.histogram(s,bins=np.arange(1,12),density=True)
+    a = np.histogram(s, bins=np.arange(1, 12), density=True)
     return a[0]
 
+
+# the maximised distribution must satisfy the mean for each sample
+def get_features():
+    def f0(x):
+        return x
+
+    return [f0]
+
+
+def get_max_entropy_distribution(mean):
+    SAMPLESPACE = np.arange(10)
+    features = get_features()
+
+    model = MinDivergenceModel(features, samplespace=SAMPLESPACE, algorithm='CG')
+
+    # set the desired feature expectations and fit the model
+    X = np.array([[mean]])
+    model.fit(X)
+
+    return model.probdist()
 
 
 # reference :https://github.com/DrSleep/tensorflow-deeplab-resnet/blob/master/deeplab_resnet/image_reader.py
@@ -36,23 +61,24 @@ def read_labeled_image_list(data_dir, data_list):
     Returns:
       Two lists with all file names for images and masks, respectively.
     """
-    file=os.path.join(data_dir,data_list)
+    file = os.path.join(data_dir, data_list)
     f = open(file, 'r')
     images = []
     scores = []
-    mean_std=[]
+    mean_std = []
     for line in f:
         try:
             image, dmos, dmos_std = line.strip("\n").split(' ')  # i.split()[0]
         except ValueError:  # Adhoc for test.
             image = dmos = line.strip("\n")
-        images.append(os.path.join(data_dir,image))
-        mean_std.append((float(dmos), float(dmos_std)))
+        images.append(os.path.join(data_dir, image))
+        mean_std.append((float(dmos), float(dmos_std)))  ## mean_std contains tuple:(dmos,doms_std)
 
-        score = get_distribution(float(dmos), float(dmos_std))
+        # score = get_distribution(float(dmos), float(dmos_std))
+        score = get_max_entropy_distribution(float(dmos))
         scores.append(score.tolist())
 
-    return images,scores,mean_std
+    return images, scores, mean_std
 
 
 def read_images_from_disk(input_queue, input_size, is_training):  # optional pre-processing arguments
@@ -81,16 +107,16 @@ def read_images_from_disk(input_queue, input_size, is_training):  # optional pre
     h, w = input_size
     if is_training:
         # resize image
-        img=tf.image.resize_images(img,[256,256])
+        img = tf.image.resize_images(img, [256, 256])
 
         # img = tf.reshape(img, shape=(224, 224, 3)) # bug
-        img=tf.random_crop(img,[h,w,3])
+        img = tf.random_crop(img, [h, w, 3])
         # img = tf.image.resize_images(img, size=(224, 224))
 
-        img=tf.image.random_flip_left_right(img)
+        img = tf.image.random_flip_left_right(img)
 
     else:
-        img=tf.image.resize_images(img,[h,w])
+        img = tf.image.resize_images(img, [h, w])
 
     img = tf.image.per_image_standardization(img)  # 将图片标准化
     # img = (tf.cast(img, tf.float32) - 127.5) / 127.5
@@ -105,7 +131,7 @@ class ImageReader(object):
        masks from the disk, and enqueues them into a TensorFlow queue.
     '''
 
-    def __init__(self, data_dir, data_list, input_size,is_training):
+    def __init__(self, data_dir, data_list, input_size, is_training):
         '''Initialise an ImageReader.
 
         Args:
@@ -117,14 +143,14 @@ class ImageReader(object):
         self.data_list = data_list
         self.input_size = input_size
 
-        self.image_list, self.scores_list,self.mean_std_list = read_labeled_image_list(self.data_dir, self.data_list)
+        self.image_list, self.scores_list, self.mean_std_list = read_labeled_image_list(self.data_dir, self.data_list)
         self.images = tf.convert_to_tensor(self.image_list, dtype=tf.string)
         self.scores = tf.convert_to_tensor(self.scores_list, dtype=tf.float32)
-        self.mean_stds = tf.convert_to_tensor(self.mean_std_list,dtype=tf.float32)
+        self.mean_stds = tf.convert_to_tensor(self.mean_std_list, dtype=tf.float32)
 
-        self.queue = tf.train.slice_input_producer([self.images, self.scores,self.mean_stds],shuffle=is_training) # not shuffling if it is val
-        self.image, self.score,self.mean_std = read_images_from_disk(self.queue, self.input_size,is_training)
-
+        self.queue = tf.train.slice_input_producer([self.images, self.scores, self.mean_stds],
+                                                   shuffle=is_training)  # not shuffling if it is val
+        self.image, self.score, self.mean_std = read_images_from_disk(self.queue, self.input_size, is_training)
 
     def dequeue(self, num_elements):
         '''Pack images and labels into a batch.
@@ -134,20 +160,20 @@ class ImageReader(object):
 
         Returns:
           Two tensors of size (batch_size, h, w, {3, 1}) for images and masks.'''
-        image_batch, label_batch, mean_std_batch = tf.train.batch([self.image, self.score,self.mean_std],
-                                                  num_elements, capacity=100)
-        return image_batch, label_batch,mean_std_batch
+        image_batch, label_batch, mean_std_batch = tf.train.batch([self.image, self.score, self.mean_std],
+                                                                  num_elements, capacity=100)
+        return image_batch, label_batch, mean_std_batch
 
 
-from PIL import Image
 import matplotlib.pyplot as plt
+
 # Define DB information
 BASE_PATH = '/media/rjw/Ran-software/dataset/iqa_dataset/tid2013/'
 import numpy as np
-IMG_MEAN = np.array((104.00698793,116.66876762,122.67891434), dtype=np.float32)
 
+IMG_MEAN = np.array((104.00698793, 116.66876762, 122.67891434), dtype=np.float32)
 
-if __name__=="__main__":
+if __name__ == "__main__":
 
     # image_raw_data = tf.gfile.FastGFile('../demo//img001.bmp', 'rb').read()
     # sess=tf.Session()
@@ -169,8 +195,8 @@ if __name__=="__main__":
                 'tid2013_train.txt',
                 [224, 224],
                 True
-                )
-            image_batch, label_batch,mean_std_batch = reader.dequeue(16)
+            )
+            image_batch, label_batch, mean_std_batch = reader.dequeue(16)
 
         with tf.name_scope("create_test_inputs"):
             test_reader = ImageReader(BASE_PATH,
@@ -179,23 +205,24 @@ if __name__=="__main__":
                                       False
                                       )
             test_image, test_score, test_mean_std = test_reader.image, test_reader.score, test_reader.mean_std
-            test_image, test_score, test_mean_std = tf.expand_dims(test_image, dim=0), tf.expand_dims(test_score,dim=0), tf.expand_dims(test_mean_std, dim=0)
+            test_image, test_score, test_mean_std = tf.expand_dims(test_image, dim=0), tf.expand_dims(test_score,
+                                                                                                      dim=0), tf.expand_dims(
+                test_mean_std, dim=0)
 
-        print(len(reader.image_list)) #2400
+        print(len(reader.image_list))  # 2400
         # sess.run(tf.global_variables_initializer())
         tf.local_variables_initializer().run()
         coord = tf.train.Coordinator()
-        thred=tf.train.start_queue_runners(sess=sess,coord=coord)
+        thred = tf.train.start_queue_runners(sess=sess, coord=coord)
 
         iters_per_epoch = len(reader.image_list) / 32
         print(iters_per_epoch)
 
         image_batch_, label_batch_, mean_std_batch_ = sess.run([image_batch, label_batch, mean_std_batch])
 
-
         for i in range(len(test_reader.image_list)):
             image_, score_, mean_std_ = sess.run([test_image, test_score, test_mean_std])
-            print(image_.shape,score_.shape,mean_std_.shape)
+            print(image_.shape, score_.shape, mean_std_.shape)
 
         # # look for source image
         # for i in range(5):
@@ -223,4 +250,3 @@ if __name__=="__main__":
             print("done")
         finally:
             coord.request_stop()
-
