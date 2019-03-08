@@ -72,6 +72,7 @@ distorted_images/i16_23_5.bmp 1.526320 0.081000
 ## Coming soon optimization
 
 - from tensorboard curve it maybe overfit ,but predict scores it looks normal, i am confused.
+- i am going to try mobilenet !
 - maybe there has some bug in the code ,but i will contimue optimazation this project.
 - if you have any questions or some adivise!  please make issue on this project. thanks!
 
