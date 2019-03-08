@@ -45,10 +45,11 @@
 2019-03-04 17:15:00,302 TF_NIMA_evaluating INFO: Test finish!
 
 ```
+- you can see when test images not in train datasets, the predict scores always in 2~3!!!
 - last predict images: run the `demo/predict.py` scripts.
 
 ```
-test:
+train data:
 distorted_images/I16_01_1.bmp 5.615380 0.106440
 distorted_images/i16_03_3.bmp 3.692310 0.089950
 distorted_images/i16_23_5.bmp 1.526320 0.081000
