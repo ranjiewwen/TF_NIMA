@@ -2,7 +2,7 @@
 # -*- coding:utf-8 -*-
 
 """
- create by ranjiewen at 20190108 in whu
+ create by ranjiewen at 20190308 in whu
 """
 import argparse
 import os
@@ -11,12 +11,13 @@ from datetime import datetime
 
 import numpy as np
 import tensorflow as tf
+slim = tf.contrib.slim
 
 from data.image_reader_nima import ImageReader
 from loss.EMD_loss import _emd
 from loss.reg_loss import reg_l2
 from metrics.srocc import scores_stats, mean_score, evaluate_metric
-from net.VGG16_model import vgg16, fully_connection
+from net.inceptionv2 import get_model
 from utils.checkpoint import save
 from utils.logger import setup_logger
 
@@ -51,8 +52,9 @@ def process_command_args():
                         help='the path of ckpt file')
     parser.add_argument('--logs_dir', type=str, default=os.path.abspath('..') + '/experiments',
                         help='the path of tensorboard logs')
-    parser.add_argument('--pretrain_weights', type=str,
-                        default=os.path.abspath('..') + "/data/vgg_models/" + 'vgg16_weights.npz')
+    parser.add_argument('--checkpoint_path', type=str,
+                        default=os.path.abspath('..') + "/data/vgg_models/inception_v2.ckpt")
+    parser.add_argument('--checkpoint_exclude_scopes',type=str,default="InceptionV2/Logits",help='Comma-separated list of scopes of variables to exclude when restoring')
 
     ## models retated argumentss
     parser.add_argument('--save_ckpt_file', type=str2bool, default=True,
@@ -68,7 +70,7 @@ def process_command_args():
     parser.add_argument('--is_training', type=str2bool, default=True, help='whether to train or test.')
     parser.add_argument('--is_eval', type=str2bool, default=True, help='whether to test.')
     parser.add_argument('--batch_size', type=int, default=48)
-    parser.add_argument('--eval_step', type=int, default=1000)
+    parser.add_argument('--eval_step', type=int, default=500)
     parser.add_argument('--summary_step', type=int, default=2)
 
     ## optimization related arguments
@@ -80,6 +82,36 @@ def process_command_args():
     args = parser.parse_args()
     return args
 
+
+def _get_init_fn(args):
+    """Return a function that 'warm-starts' the training.
+
+    Returns:
+      An init function.
+    """
+    exclusions = []
+    if args.checkpoint_exclude_scopes:
+        exclusions = [scope.strip()
+                      for scope in args.checkpoint_exclude_scopes.split(',')]
+
+    variables_to_restore = []
+    for var in slim.get_model_variables():
+        excluded = False
+        for exclusion in exclusions:
+            if var.op.name.startswith(exclusion):
+                excluded = True
+                break
+        if not excluded:
+            variables_to_restore.append(var)
+
+    if tf.gfile.IsDirectory(args.checkpoint_path):
+        checkpoint_path = tf.train.latest_checkpoint(args.checkpoint_path)
+    else:
+        checkpoint_path = args.checkpoint_path
+
+    logger.info('Fine-tuning from {}'.format(checkpoint_path))
+
+    return slim.assign_from_checkpoint_fn(checkpoint_path, variables_to_restore)
 
 def train(args):
     graph = tf.Graph()
@@ -103,14 +135,12 @@ def train(args):
             test_image, test_score, test_mean_std = tf.expand_dims(test_image, dim=0), tf.expand_dims(test_score,
                                                                                                       dim=0), tf.expand_dims(
                 test_mean_std, dim=0)
-        # # placeholders for training data
+        ## placeholders for training data
         imgs = tf.placeholder(tf.float32, [None, args.crop_height, args.crop_width, 3])
         scores = tf.placeholder(tf.float32, [None, 10])
 
         with tf.name_scope("create_models"):
-            vgg = vgg16(imgs)
-            x = fully_connection(vgg.pool5, 128, 1.0)
-            scores_hat = tf.nn.softmax(x)
+            scores_hat,end_point = get_model(imgs)
 
         means = tf.placeholder(tf.float32, [None, 1])
         with tf.name_scope("create_loss"):
@@ -125,6 +155,10 @@ def train(args):
         lr = tf.placeholder(tf.float32, [])
         with tf.name_scope("create_optimize"):
             # optimizer = tf.train.GradientDescentOptimizer(learning_rate=lr).minimize(loss)
+            # var_list = [v for v in tf.trainable_variables()]
+            # print("--------------------------------")
+            # print(var_list)
+            # print("--------------------------------")
             optimizer = tf.train.AdamOptimizer(learning_rate=lr).minimize(loss)
 
         saver = tf.train.Saver(var_list=tf.global_variables(), max_to_keep=10)
@@ -133,12 +167,12 @@ def train(args):
         tf.summary.scalar('emd_loss', emd_loss_out)
         # Build the summary Tensor based on the TF collection of Summaries.
         summary_op = tf.summary.merge_all()
+        init_fn = _get_init_fn(args)
 
     with tf.Session(graph=graph) as sess:
 
         sess.run(tf.global_variables_initializer())
-        vgg.load_weights(args.pretrain_weights, sess)
-
+        init_fn(sess)
         # create queue coordinator
         coord = tf.train.Coordinator()
         thread = tf.train.start_queue_runners(coord=coord, sess=sess)
@@ -181,10 +215,11 @@ def train(args):
                                                   lr: base_lr})
                 # print(means_out.reshape(-1,))
                 # print(mean_hat_out)
-                srocc, krocc, plcc, rmse, mse = evaluate_metric(means_out.reshape(-1, ), mean_hat_out)
-                logger.info(
-                    "evaluate train batch SROCC_v: %.3f\t KROCC: %.3f\t PLCC_v: %.3f\t RMSE_v: %.3f\t mse: %.3f\n" % (
-                    srocc, krocc, plcc, rmse, mse))
+                # srocc, krocc, plcc, rmse, mse = evaluate_metric(means_out.reshape(-1, ), mean_hat_out)
+                # logger.info(
+                #     "evaluate train batch SROCC_v: %.3f\t KROCC: %.3f\t PLCC_v: %.3f\t RMSE_v: %.3f\t mse: %.3f\n" % (
+                #     srocc, krocc, plcc, rmse, mse))
+
                 summary_writer.add_summary(summary_str, step)
                 summary_writer.flush()
 
@@ -247,7 +282,7 @@ def main():
         os.makedirs(args.ckpt_dir)
 
     global logger
-    logger = setup_logger("TF_NIMA_training", output_dir, "train_")
+    logger = setup_logger("TF_NIMA_training_"+args.dataset, output_dir, "train_")
     logger.info(args)
 
     train(args)

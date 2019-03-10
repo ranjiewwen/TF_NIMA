@@ -105,6 +105,7 @@ def read_images_from_disk(input_queue, input_size, is_training):  # optional pre
     # img -= img_mean
 
     h, w = input_size
+
     if is_training:
         # resize image
         img = tf.image.resize_images(img, [256, 256])

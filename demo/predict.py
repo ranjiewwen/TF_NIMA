@@ -18,7 +18,7 @@ x = fully_connection(vgg.pool5, 128, 1.0)
 scores_hat = tf.nn.softmax(x)
 saver = tf.train.Saver()
 
-filename = "img/I16.bmp"
+filename = "img/i23_12_5.bmp"
 # image_raw_data = tf.gfile.FastGFile(filename, 'r').read()
 image_raw_data = tf.read_file(filename)
 

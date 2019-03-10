@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding:utf-8 -*-
 """
-created VGG_model_K.py by rjw at 19-1-10 in WHU.
+created keras_vgg.py by rjw at 19-1-10 in WHU.
 """
 
 import keras

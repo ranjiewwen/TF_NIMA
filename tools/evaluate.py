@@ -152,7 +152,7 @@ def main():
         os.makedirs(args.ckpt_dir)
 
     global logger
-    logger = setup_logger("TF_NIMA_evaluating", output_dir, "test_")
+    logger = setup_logger("TF_NIMA_evaluating_"+args.dataset, output_dir, "test_")
     logger.info(args)
 
     evaluate(args)

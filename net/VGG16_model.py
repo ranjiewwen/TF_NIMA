@@ -110,7 +110,7 @@ class vgg16:
 
     def fc_layers(self):
         self.fc6=self.fc("fc6",self.pool5,4096,trainable=False)
-        self.fc7=self.fc("fc7",self.fc6,4096,trainable=True)
+        self.fc7=self.fc("fc7",self.fc6,4096,trainable=False)
         self.dropout=tf.nn.dropout(self.fc7,1.0)
         self.fc8=self.fc("fc8",self.dropout,10)
 
